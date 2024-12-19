@@ -70,7 +70,7 @@ def download_ewd(driver, manual_name):
 
     for s in SYSTEMS:
         idx = os.path.join(manual_name, s, "index.xml")
-        print(idx)
+        print('Downloading from', idx)
         tree = ET.parse(idx)
         root = tree.getroot()
         for child in root:
@@ -81,21 +81,25 @@ def download_ewd(driver, manual_name):
             if os.path.exists(fn):
                 continue
 
-            print("Downloading ", name, "...")
             url = "https://techinfo.toyota.com/t3Portal/external/en/ewdappu/" + manual_name + "/ewd/contents/" + s + "/pdf/" + fig + ".pdf"
+            print("Downloading ", name, "...", url)
             driver.get(url)
             # this will have downloaded the file, or not
             temp_dl_path = os.path.join("download", fig + ".pdf.crdownload")
             while os.path.exists(temp_dl_path):
-                time.sleep(5.0)
+                time.sleep(0.5)
             dl_path = os.path.join("download", fig + ".pdf")
+            # Wait up to 10s
+            for i in range(20):
+                if not os.path.exists(dl_path):
+                    time.sleep(0.5)
             if not os.path.exists(dl_path):
-                time.sleep(1)
-            if not os.path.exists(dl_path):
-                print("Didn't download ", url, "!")
+                print("\tDidn't download", url, "!")
                 continue
             shutil.move(dl_path, fn)
-            print("Done ", name)
+            time.sleep(0.5)
+            print("\tDone:", name)
+        print("Done")
 
 def toc_parse_items(base, items):
     if len(items) == 0:
@@ -154,7 +158,7 @@ def download_manual(driver, manual_type, manual_name, export_to_pdf):
     toc_path = os.path.join(manual_name, "toc.xml")
     if not os.path.exists(toc_path):
         print("Downloading the TOC for", manual_name)
-        url = "https://techinfo.toyota.com/t3Portal/external/en/" + t + "/" + manual_name + "/toc.xml"
+        url = "https://techinfo.toyota.com/t3Portal/external/en/" + manual_type + "/" + manual_name + "/toc.xml"
         driver.get(url)
         xml_src = driver.execute_script('return document.getElementById("webkit-xml-viewer-source-xml").innerHTML')
         with open(toc_path, 'w') as fh:
@@ -183,16 +187,17 @@ def download_manual(driver, manual_type, manual_name, export_to_pdf):
         f_p = os.path.join(manual_name, "html", f_parts[len(f_parts)-1])
         pdf_p = os.path.join(manual_name, "pdf", f_parts[len(f_parts)-1][:-5] + ".pdf")
 
-        print("File paths: " + f_p + " " + pdf_p)
+        print("\tFile paths: " + f_p + " " + pdf_p)
         if os.path.exists(f_p) and not os.path.exists(pdf_p):
             if export_to_pdf:
                 # make the pdf
+                print("\tCreating PDF from", f_p, "to", pdf_p)
                 make_pdf(f_p, pdf_p)
             else:
-                print("Skip exporting to PDF")
+                print("\tSkip exporting to PDF")
 
         if os.path.exists(f_p) or os.path.exists(pdf_p):
-            print("Skipping. File(s) already exist.")
+            print("\tSkipping. File(s) already exist.")
             continue
         driver.get(url)
 
@@ -220,7 +225,6 @@ def download_manual(driver, manual_type, manual_name, export_to_pdf):
     build_toc_index(manual_name)
 
 def make_pdf(src, dest):
-    print("Creating PDF from", src, "to", dest)
     subprocess.run([CHROME_PATH, "--print-to-pdf=" + os.path.abspath(dest), "--no-gpu", "--headless", "file://" + os.path.abspath(src)])
 
 if __name__ == "__main__":
@@ -249,8 +253,14 @@ if __name__ == "__main__":
             print("Unknown document type for '" + name + "'!")
             sys.exit(1)
     
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("user-data-dir=./user-data")
+    working_dir = os.path.dirname(os.path.abspath(__file__))
+
+    chrome_options = webdriver.ChromeOptions() 
+
+    # chromedriver seems to not support user-data-dir, so comment it out
+    #user_data_dir = os.path.join(working_dir, 'user-data')
+    #print('Using user-data-dir: ' + user_data_dir)
+    #chrome_options.add_argument('user-data-dir=' + user_data_dir)
 
     shutil.rmtree("download", True)
     os.makedirs("download")
@@ -258,20 +268,23 @@ if __name__ == "__main__":
     driver = webdriver.Chrome(service=Service(args.driverPath, options=chrome_options))
 
     driver.get("https://techinfo.toyota.com")
+    print('Make sure to:')
+    print('1. Set the download directory to ./download')
+    print("2. Disable Chrome's built-in PDF viewer")
     input("Please login and press enter to continue...")
 
     # for each in ewd download
-    print("Downloading electrical wiring diagrams...")
+    print("====================Downloading electrical wiring diagrams...====================")
     for ewd in EWDS:
         download_ewd(driver, ewd)
 
     # download all collision manuals
-    print("Downloading collision repair manuals...")
+    print("====================Downloading collision repair manuals...====================")
     for cr in COLLISION_MANUALS:
         download_manual(driver, "cr", cr, args.export_to_pdf)
 
     # download all repair manuals
-    print("Downloading repair manuals...")
+    print("====================Downloading repair manuals...====================")
     for rm in REPAIR_MANUALS:
         download_manual(driver, "rm", rm, args.export_to_pdf)
 

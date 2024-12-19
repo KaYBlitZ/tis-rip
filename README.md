@@ -5,8 +5,9 @@ This script allows you to rip electrical wiring diagrams, collision/body repair 
 ## Setup
 
 This script requires that you download ChromeDriver from https://googlechromelabs.github.io/chrome-for-testing/ and place the
-executable in this directory. You will also need to initialize a new Chrome user profile at ./user-data and configure
-some settings manually:
+executable in this directory. 
+
+You will also need to initialize a new Chrome user profile at ./user-data. **NOTE: This seems to not work anymore and can be skipped.**
 
 ```
 chrome --user-data-dir=./user-data
@@ -14,9 +15,9 @@ or
 // For Macs
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --user-data-dir=./user-data
 ```
-
-1. Set the chromedriver's download directory to ./download
-2. Disable the chromedriver's built-in PDF viewer
+Configure these settings manually:
+1. Set the download directory to ./download
+2. Disable Chrome's built-in PDF viewer
 
 You will also need to install the Python dependencies:
 
@@ -27,7 +28,9 @@ pip3 install -r requirements.txt
 ## Usage
 
 ```
-# This will open TIS in Chrome and prompt a login. After this, return to Terminal and press enter.
+# This will open TIS in Chrome and prompt a login. 
+# Make sure to change the download path and disable the built-in PDF viewer.
+# After this, return to Terminal and press enter.
 python3 tis-rip.py EM12345 RM12345 BM12345 BM98765 RM01935 EM37590
 
 usage: tis-rip.py [-h] [-p] [-d DRIVERPATH] names [names ...]
