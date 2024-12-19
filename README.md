@@ -1,53 +1,52 @@
 # TIS Document Ripper
 
-This script allows you to rip electrical wiring diagrams, collision/body repair manuals, and repair manuals from
-Toyota's TIS.
-
-### CZ notes: June 2022
-
-Install dependencies (bs4, selenium) in conda environment. Activate (e.g., `conda activate scrape`)
-
-1\. Check Google Chrome for version, then given version download matching ChromeDriver from http://chromedriver.chromium.org/downloads (e.g., chromedriver_mac64.zip) and unzip the binary into this directory.
-
-2\. Generate user profile in this directory on MacOS by running:
-
-```
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --user-data-dir=./user-data
-```
-
-Verify that you now have a folder `./user-data`
-
-3\. Do initial "rip." `./rip.py RM30B0U` --> this will open TIS in Chrome and prompt a login. After this, return to Terminal and press enter.
-
-4\. The initial rip creates and HTML ToC. After the initial rip is completed, run the code again `./rip.py RM30B0U` and it will find the HTML files and instead generate PDFs for all files and add to the ToC as well.
-
-NOTE: Some older vehicles (e.g., 2008 Corolla) have body repair manuals that start with BRM and do not use the same document ID as the RM or EM.
+This script allows you to rip electrical wiring diagrams, collision/body repair manuals, and repair manuals from Toyota's TIS.
 
 ## Setup
 
-This script requires that you download ChromeDriver from http://chromedriver.chromium.org/downloads and place the
+This script requires that you download ChromeDriver from https://googlechromelabs.github.io/chrome-for-testing/ and place the
 executable in this directory. You will also need to initialize a new Chrome user profile at ./user-data and configure
 some settings manually:
 
 ```
 chrome --user-data-dir=./user-data
+or
+// For Macs
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --user-data-dir=./user-data
 ```
 
-You should set the Download directory to ./download, and disable the built-in PDF viewer.
+1. Set the chromedriver's download directory to ./download
+2. Disable the chromedriver's built-in PDF viewer
 
-You will also need to install the pip dependencies:
+You will also need to install the Python dependencies:
 
 ```
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Usage
 
 ```
-./rip.py EM12345 RM12345 BM12345 BM98765 RM01935 EM37590
+# This will open TIS in Chrome and prompt a login. After this, return to Terminal and press enter.
+python3 tis-rip.py EM12345 RM12345 BM12345 BM98765 RM01935 EM37590
+
+usage: tis-rip.py [-h] [-p] [-d DRIVERPATH] names [names ...]
+
+TIS rip script
+
+positional arguments:
+  names                 TIS manual names
+
+options:
+  -h, --help            show this help message and exit
+  -p, --pdf             additionally export to PDF files
+  -d DRIVERPATH, --driver DRIVERPATH
+                        path to the chromedriver binary, defaults to ./chromedriver
 ```
 
 All manuals will be downloaded to their own directories.
+
+NOTE: Some older vehicles (e.g., 2008 Corolla) have body repair manuals that start with BRM and do not use the same document ID as the RM or EM.
 
 ## Finding document IDs
 
