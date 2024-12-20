@@ -158,9 +158,22 @@ def download_manual(driver, manual_type, manual_name, export_to_pdf):
     toc_path = os.path.join(manual_name, "toc.xml")
     if not os.path.exists(toc_path):
         print("Downloading the TOC for", manual_name)
-        url = "https://techinfo.toyota.com/t3Portal/external/en/" + manual_type + "/" + manual_name + "/toc.xml"
-        driver.get(url)
-        xml_src = driver.execute_script('return document.getElementById("webkit-xml-viewer-source-xml").innerHTML')
+        types = [manual_type, 'atm', 'whr']
+        xml_src = None
+        for type in types:
+            manual_type = type
+            print('Trying manual type', manual_type)
+            url = "https://techinfo.toyota.com/t3Portal/external/en/" + manual_type + "/" + manual_name + "/toc.xml"
+            driver.get(url)
+            try:
+                xml_src = driver.execute_script('return document.getElementById("webkit-xml-viewer-source-xml").innerHTML')
+                print('Downloaded toc.xml successfully')
+                break
+            except:
+                continue
+        if xml_src == None:
+            print('ERROR!!! Cannot download ' + manual_name + '. Cannot find toc.xml.')
+            return
         with open(toc_path, 'w') as fh:
             fh.write(xml_src)
 
@@ -184,10 +197,11 @@ def download_manual(driver, manual_type, manual_name, export_to_pdf):
         print("Downloading", href, " (", n, "/", c, ")...")
         # all are html files, load them all up one at a time and then save them
         f_parts = href.split('/')
+        # relative paths to the working directory
         f_p = os.path.join(manual_name, "html", f_parts[len(f_parts)-1])
         pdf_p = os.path.join(manual_name, "pdf", f_parts[len(f_parts)-1][:-5] + ".pdf")
 
-        print("\tFile paths: " + f_p + " " + pdf_p)
+        print("\tFile paths:", f_p, pdf_p)
         if os.path.exists(f_p) and not os.path.exists(pdf_p):
             if export_to_pdf:
                 # make the pdf
@@ -200,26 +214,60 @@ def download_manual(driver, manual_type, manual_name, export_to_pdf):
             print("\tSkipping. File(s) already exist.")
             continue
         driver.get(url)
+        # give time for redirects
+        time.sleep(2)
 
-        print("\tInjecting scripts...")
-        # we want to inject jQuery now
-        driver.execute_script("""var s=window.document.createElement('script');\
-        s.src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js';\
-        window.document.head.appendChild(s);""")
+        if '.pdf' in driver.current_url:
+            print("\tPDF found!")
 
-        # remove the toyota footer
-        src = None
-        try :
-            src = driver.execute_script(open("injected.js", "r").read())
-        except:
-            time.sleep(1)
-            src = driver.execute_script(open("injected.js", "r").read())
+            urlParts = driver.current_url.split('/')
+            pdfName = urlParts[len(urlParts) - 1].split('?')[0]
+            print('\tSearching for pdf', pdfName)
 
-        with open(f_p, 'w') as fh:
-            fh.write(src)
+            # Wait up to 10s
+            for i in range(20):
+                complete = False
+                for f in os.listdir("download"):
+                    if f.endswith(pdfName):
+                        complete = True
+                        break
+                if complete:
+                    break
+                else:
+                    time.sleep(0.5)
 
-        fix_links(f_p)
+            # list out all downloads in folder and try to match them!
+            downloaded_file = None
+            for f in os.listdir("download"):
+                if f.endswith(pdfName):
+                    downloaded_file = f
+                    break
 
+            if downloaded_file is None:
+                print("\tCould not find matching download!")
+                continue
+
+            shutil.move(os.path.join("download", downloaded_file), pdf_p)
+            time.sleep(0.5)
+        else:
+            print("\tHTML found. Injecting scripts...")
+            # we want to inject jQuery now
+            driver.execute_script("""var s=window.document.createElement('script');\
+            s.src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js';\
+            window.document.head.appendChild(s);""")
+
+            # remove the toyota footer
+            src = None
+            try :
+                src = driver.execute_script(open("injected.js", "r").read())
+            except:
+                time.sleep(1)
+                src = driver.execute_script(open("injected.js", "r").read())
+
+            with open(f_p, 'w') as fh:
+                fh.write(src)
+
+            fix_links(f_p)
         print("\tDone")
     
     build_toc_index(manual_name)
@@ -243,11 +291,11 @@ if __name__ == "__main__":
     COLLISION_MANUALS = []
 
     for name in args.names:
-        if name.startswith('EM'):
+        if name.startswith('EM') or name.startswith('EWD'):
             EWDS.append(name)
         elif name.startswith('RM'):
             REPAIR_MANUALS.append(name)
-        elif name.startswith('BM'):
+        elif name.startswith('BM') or name.startswith('BRM'):
             COLLISION_MANUALS.append(name)
         else:
             print("Unknown document type for '" + name + "'!")
@@ -276,7 +324,10 @@ if __name__ == "__main__":
     # for each in ewd download
     print("====================Downloading electrical wiring diagrams...====================")
     for ewd in EWDS:
-        download_ewd(driver, ewd)
+        if ewd.startswith('EWD'):
+            download_manual(driver, "ewd", ewd, args.export_to_pdf)
+        else:
+            download_ewd(driver, ewd)
 
     # download all collision manuals
     print("====================Downloading collision repair manuals...====================")
